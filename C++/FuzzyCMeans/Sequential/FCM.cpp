@@ -1,5 +1,7 @@
 #include "FCM.h"
 #include <iostream>
+#include <cmath>
+#include <omp.h>
 
 /*
 Code: Fuzzy C-means
@@ -15,7 +17,7 @@ namespace FCM
 			Outputs: centroids
 			Returns: membership
 	*/
-	std::vector<double> FCM::RunClustering(int nDims, const std::vector<double> & data, int nCentroids, double fuzziness, double errorThreshold, std::vector<double> centroids)
+	std::vector<double> RunClustering(int nDims, const std::vector<double> & data, int nCentroids, double fuzziness, double errorThreshold, std::vector<double> & centroids)
 	{
 		std::vector<double> currentMembership;
 		std::vector<double> nextMembership;
@@ -37,7 +39,7 @@ namespace FCM
 			Inputs: nPoints, nClusters
 			Outputs: membership
 	*/
-	void FCM::InitializeMembership(int nPoints, int nClusters, std::vector<double> & membership)
+	void InitializeMembership(int nPoints, int nClusters, std::vector<double> & membership)
 	{
 		membership.resize(nPoints*nClusters);
 		for (int p = 0; p < nPoints; p++)
@@ -57,7 +59,7 @@ namespace FCM
 		Inputs: currentMembership, nextMembership, error
 		Outputs: True if the absolute difference between nextMembership[u] and currentMembership[u] are larger than a given error
 	*/
-	bool FCM::IsMembershipDiffGreater(const std::vector<double> & currentMembership, const std::vector<double> & nextMembership, double error)
+	bool IsMembershipDiffGreater(const std::vector<double> & currentMembership, const std::vector<double> & nextMembership, double error)
 	{
 		int size = currentMembership.size();
 		for (int u = 0; u < size; u++)
@@ -70,7 +72,7 @@ namespace FCM
 		Inputs: nCentroids, fuzziness, nDims, data, membership
 		Outputs: centroids
 	*/
-	void FCM::ComputeCentroids(int nCentroids, double fuzziness, int nDims, const std::vector<double> & data, const std::vector<double> & membership, std::vector<double> & centroids)
+	void ComputeCentroids(int nCentroids, double fuzziness, int nDims, const std::vector<double> & data, const std::vector<double> & membership, std::vector<double> & centroids)
 	{
 		if (centroids.size() == 0)
 			centroids.resize(nCentroids*nDims);
@@ -100,7 +102,7 @@ namespace FCM
 		Inputs: nCentroids, nDims, data, centroids, fuzziness
 		Outputs: membership
 	*/
-	void FCM::ComputeMembership(int nDims, const std::vector<double> & data, const std::vector<double> & centroids, double fuzziness, std::vector<double> & membership)
+	void ComputeMembership(int nDims, const std::vector<double> & data, const std::vector<double> & centroids, double fuzziness, std::vector<double> & membership)
 	{
 		int nPoints = data.size() / nDims;
 		int nCentroids = centroids.size() / nDims;
@@ -129,7 +131,7 @@ namespace FCM
 			p2s: List of points p2
 		Returns: distances between p1[p1Idx...p1Idx + nDims] & p2[p2Idx...p2Idx + nDims]
 	*/
-	double FCM::ComputeDistance(int nDims, int p1Idx, const std::vector<double> & p1s, int p2Idx, const std::vector<double> & p2s)
+	inline double ComputeDistance(int nDims, int p1Idx, const std::vector<double> & p1s, int p2Idx, const std::vector<double> & p2s)
 	{
 		double distance = 0;
 		int p1IdxStart = p1Idx*nDims;
