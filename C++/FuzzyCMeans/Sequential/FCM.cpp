@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cmath>
 #include <omp.h>
-
 /*
 Code: Fuzzy C-means
 Developer: Dennis Carnelossi Furlaneto
@@ -11,8 +10,22 @@ License: MIT
 
 namespace FCM
 {
-	/*RunClustering: This function receives a data vector with all the points with nDims dimensions and returns a membership vector with nPoints*nClusters positions. The membership
-		values are in the following order: points -> membership per cluster.
+	void PrintMatrix(int nDim, const char* nameRow, std::vector<double> & matrix)
+	{
+		int nRows = matrix.size()/nDim;
+		
+		for(int i=0; i<nRows; ++i)
+		{
+			printf("%s %d: ",nameRow, i);	
+			for(int j=0; j<nDim; ++j)
+			{
+				printf("%.4f ", matrix[i*nDim + j]);	
+			}
+			printf("\n");
+		}
+	}
+
+	/*RunClustering: This function receives a data vector with all the points with nDims dimensions and returns a membership vector with nPoints*nClusters positions. The membership values are in the following order: points -> membership per cluster.
 			Inputs: nDims, data, nCentroids, fuzziness, errorThreshold
 			Outputs: centroids
 			Returns: membership
@@ -23,6 +36,7 @@ namespace FCM
 		std::vector<double> nextMembership;
 		int nPoints = data.size() / nDims;
 		InitializeMembership(nPoints, nCentroids, nextMembership);
+
 		do
 		{
 			currentMembership = nextMembership;
@@ -34,24 +48,29 @@ namespace FCM
 		return nextMembership;
 	}
 
-	/*InitializeMembership: Initializes randomly the membership value for each point for each of cluster.The sum of the membership values of a given point must be equal to 1.
-		Membership nPointIdx*nClusters positions represent the memberships of the nPointIdx point.
-			Inputs: nPoints, nClusters
-			Outputs: membership
+	/*InitializeMembership: Initializes randomly the membership value for each point for each of cluster.The sum of the membership values of a given point must be equal to 1. Membership nPointIdx*nClusters positions represent the memberships of the nPointIdx point.
+		Inputs: nPoints, nClusters
+		Outputs: membership
 	*/
 	void InitializeMembership(int nPoints, int nClusters, std::vector<double> & membership)
 	{
 		membership.resize(nPoints*nClusters);
-		for (int p = 0; p < nPoints; p++)
+		#pragma omp parallel shared(nClusters, membership, nPoints) default(none) 	
 		{
-			double sum = 0.0;
-			for (int c = 0; c < nClusters; c++)
+			unsigned int seed = (unsigned int)(time(NULL)) * omp_get_thread_num();
+			#pragma omp parallel for 
+			for (int p = 0; p < nPoints; p++)
 			{
-				membership[p*nClusters + c] = rand();
-				sum += membership[p*nClusters + c];
+				double sum = 0.0;
+				int pIdx = p*nClusters;
+				for (int c = 0; c < nClusters; c++)
+				{
+					membership[pIdx + c] = rand_r(&seed);
+					sum += membership[pIdx + c];
+				}
+				for (int c = 0; c < nClusters; c++)
+					membership[pIdx + c] /= sum;
 			}
-			for (int c = 0; c < nClusters; c++)
-				membership[p*nClusters + c] /= sum;
 		}
 	}
 
@@ -62,9 +81,15 @@ namespace FCM
 	bool IsMembershipDiffGreater(const std::vector<double> & currentMembership, const std::vector<double> & nextMembership, double error)
 	{
 		int size = currentMembership.size();
+		double calcError = 0.0;
+		double diff = 0.0;
 		for (int u = 0; u < size; u++)
-			if (abs(nextMembership[u] - currentMembership[u]) > error)
-				return true;
+		{
+			diff = (nextMembership[u] - currentMembership[u]);
+			calcError += diff*diff;
+		}
+		if(sqrt(calcError) > error)
+			return true;
 		return false;
 	}
 
@@ -79,15 +104,17 @@ namespace FCM
 
 		int nPoints = data.size() / nDims;
 
+		#pragma omp parallel for
 		for (int j = 0; j < nCentroids; j++)
 		{
-			std::vector<double> numerator;
+			std::vector<double> numerator(nDims);
 			double denominator = 0.0;
-			numerator.resize(nDims);
 
 			for (int p = 0; p < nPoints; p++)
 			{
-				double weightedMembership = powf(membership[p*nCentroids + j], fuzziness);
+				double weightedMembership = membership[p*nCentroids + j] * membership[p*nCentroids + j];
+				//TODO: Find out why powf is so slow
+				//double weightedMembership = powf(membership[p*nCentroids + j], fuzziness);
 				for (int d = 0; d < nDims; d++)
 					numerator[d] += weightedMembership*data[p*nDims + d];
 				denominator += weightedMembership;
@@ -106,16 +133,20 @@ namespace FCM
 	{
 		int nPoints = data.size() / nDims;
 		int nCentroids = centroids.size() / nDims;
+		//Exponent is not in use. powf is too slow
+		double exponent = 2. / (fuzziness - 1);
+		#pragma omp parallel for
 		for (int i = 0; i < nPoints; ++i)
 		{
 			for (int j = 0; j < nCentroids; ++j)
 			{
-				double denominator = 0;
-				double distPCij = ComputeDistance(nDims, i, data, j, centroids);
+				float denominator = 0;
+				float distPCij = ComputeDistance(nDims, i, data, j, centroids);
 				for (int k = 0; k < nCentroids; ++k)
 				{
-					double exponent = 2. / (fuzziness - 1);
-					denominator += powf(distPCij / ComputeDistance(nDims, i, data, k, centroids), exponent);
+					float divDistPCijDistPCik = distPCij / ComputeDistance(nDims, i, data, k, centroids);
+					denominator += divDistPCijDistPCik * divDistPCijDistPCik;
+					//denominator += powf(distPCij / ComputeDistance(nDims, i, data, k, centroids), exponent);
 				}
 				membership[i*nCentroids + j] = 1./denominator;
 			}
@@ -131,14 +162,18 @@ namespace FCM
 			p2s: List of points p2
 		Returns: distances between p1[p1Idx...p1Idx + nDims] & p2[p2Idx...p2Idx + nDims]
 	*/
-	inline double ComputeDistance(int nDims, int p1Idx, const std::vector<double> & p1s, int p2Idx, const std::vector<double> & p2s)
+	inline float ComputeDistance(int nDims, int p1Idx, const std::vector<double> & p1s, int p2Idx, const std::vector<double> & p2s)
 	{
-		double distance = 0;
+		float distance = 0;
+		float pointDiff = 0;
 		int p1IdxStart = p1Idx*nDims;
 		int p2IdxStart = p2Idx*nDims;
-
+		
 		for (int d = 0; d < nDims; d++)
-			distance += powf(p1s[p1IdxStart + d] - p2s[p2IdxStart + d], 2);
+		{
+			pointDiff = p1s[p1IdxStart + d] - p2s[p2IdxStart + d];
+			distance += pointDiff * pointDiff;
+		}
 		return sqrtf(distance);
 	}
 

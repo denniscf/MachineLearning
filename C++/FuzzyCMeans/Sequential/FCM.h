@@ -14,6 +14,6 @@ namespace FCM
 	bool IsMembershipDiffGreater(const std::vector<double> & currentMembership, const std::vector<double> & nextMembership, double error);
 	void ComputeCentroids(int nCentroids, double fuzziness, int nDims, const std::vector<double> & data, const std::vector<double> & membership, std::vector<double> & centroids);
 	void ComputeMembership(int nDims, const std::vector<double> & data, const std::vector<double> & centroids, double fuzziness, std::vector<double> & membership);
-	inline double ComputeDistance(int nDims, int p1Idx, const std::vector<double> & p1s, int p2Idx, const std::vector<double> & p2s);
+	inline float ComputeDistance(int nDims, int p1Idx, const std::vector<double> & p1s, int p2Idx, const std::vector<double> & p2s);
 };
 
