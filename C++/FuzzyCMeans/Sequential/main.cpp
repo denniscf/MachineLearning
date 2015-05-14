@@ -90,10 +90,21 @@ void TestRunTime()
 	printf("Run time (milisecs): %li\n", std::chrono::duration_cast<std::chrono::nanoseconds>(t2 -t1)/1000000); 
 }
 
+void TestGenerateInitMembership()
+{
+	int nPoints = 5;
+	int nCentroids = 3;
+	std::vector<double> membership;
+	FCM::InitializeMembership(nPoints, nCentroids, membership);
+	PrintMatrix(nPoints, "Cluster", membership);
+}
+
 int main(int argc, char** argv)
 {
-	TestClusteringFixedVals();
+	//TestClusteringFixedVals();
 	//TestClustering();
+	TestGenerateInitMembership();
+	TestClusteringFixedVals();
 	TestRunTime();
 	
 	char ch;

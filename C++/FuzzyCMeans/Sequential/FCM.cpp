@@ -62,14 +62,13 @@ namespace FCM
 			for (int p = 0; p < nPoints; p++)
 			{
 				double sum = 0.0;
-				int pIdx = p*nClusters;
 				for (int c = 0; c < nClusters; c++)
 				{
-					membership[pIdx + c] = rand_r(&seed);
-					sum += membership[pIdx + c];
+					membership[p + c*nPoints] = rand_r(&seed);
+					sum += membership[p + c*nPoints];
 				}
 				for (int c = 0; c < nClusters; c++)
-					membership[pIdx + c] /= sum;
+					membership[p + c*nPoints] /= sum;
 			}
 		}
 	}
@@ -82,10 +81,11 @@ namespace FCM
 	{
 		int size = currentMembership.size();
 		double calcError = 0.0;
-		double diff = 0.0;
+		
+		#pragma omp parallel for reduction(+:calcError) 
 		for (int u = 0; u < size; u++)
 		{
-			diff = (nextMembership[u] - currentMembership[u]);
+			double diff = (nextMembership[u] - currentMembership[u]);
 			calcError += diff*diff;
 		}
 		if(sqrt(calcError) > error)
@@ -105,22 +105,21 @@ namespace FCM
 		int nPoints = data.size() / nDims;
 
 		#pragma omp parallel for
-		for (int j = 0; j < nCentroids; j++)
+		for (int c = 0; c < nCentroids; c++)
 		{
 			std::vector<double> numerator(nDims);
 			double denominator = 0.0;
 
 			for (int p = 0; p < nPoints; p++)
 			{
-				double weightedMembership = membership[p*nCentroids + j] * membership[p*nCentroids + j];
-				//TODO: Find out why powf is so slow
+				double weightedMembership = membership[c*nPoints + p] * membership[c*nPoints + p];
 				//double weightedMembership = powf(membership[p*nCentroids + j], fuzziness);
 				for (int d = 0; d < nDims; d++)
 					numerator[d] += weightedMembership*data[p*nDims + d];
 				denominator += weightedMembership;
 			}
 			for (int d = 0; d < nDims; d++)
-				centroids[j*nDims + d] = numerator[d] / denominator;
+				centroids[c*nDims + d] = numerator[d] / denominator;
 		}
 	}
 
@@ -136,19 +135,19 @@ namespace FCM
 		//Exponent is not in use. powf is too slow
 		double exponent = 2. / (fuzziness - 1);
 		#pragma omp parallel for
-		for (int i = 0; i < nPoints; ++i)
+		for (int j = 0; j < nPoints; ++j)
 		{
-			for (int j = 0; j < nCentroids; ++j)
+			for (int i = 0; i < nCentroids; ++i)
 			{
 				float denominator = 0;
-				float distPCij = ComputeDistance(nDims, i, data, j, centroids);
+				float distPCij = ComputeDistance(nDims, j, data, i, centroids);
 				for (int k = 0; k < nCentroids; ++k)
 				{
-					float divDistPCijDistPCik = distPCij / ComputeDistance(nDims, i, data, k, centroids);
+					float divDistPCijDistPCik = distPCij / ComputeDistance(nDims, j, data, k, centroids);
 					denominator += divDistPCijDistPCik * divDistPCijDistPCik;
 					//denominator += powf(distPCij / ComputeDistance(nDims, i, data, k, centroids), exponent);
 				}
-				membership[i*nCentroids + j] = 1./denominator;
+				membership[j + i*nPoints] = 1./denominator;
 			}
 		}
 	}
