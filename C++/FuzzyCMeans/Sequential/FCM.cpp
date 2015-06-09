@@ -8,8 +8,17 @@ Developer: Dennis Carnelossi Furlaneto
 License: MIT
 */
 
+
 namespace FCM
 {
+	#ifndef USE_OMP
+		int omp_get_thread_num()
+		{
+			return 0;
+		}
+	#endif
+
+
 	void PrintMatrix(int nDim, const char* nameRow, std::vector<double> & matrix)
 	{
 		int nRows = matrix.size()/nDim;

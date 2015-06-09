@@ -31,10 +31,11 @@ void PrintMatrix(int nDim, const char* nameRow, std::vector<double> & matrix)
 void PrintResults(int nDim, std::vector<double> & points, std::vector<double> & centroids, std::vector<double> & membership)
 {
 	int nCentroids = centroids.size()/nDim;
+	int nPoints = points.size()/nDim;
 	
 	PrintMatrix(nDim, "Point", points);
 	PrintMatrix(nDim, "Centroid", centroids);
-	PrintMatrix(nCentroids, "Membership", membership);
+	PrintMatrix(nPoints, "Membership", membership);
 }
 
 void TestClustering()
@@ -87,6 +88,7 @@ void TestRunTime()
 	auto t1 = std::chrono::high_resolution_clock::now();
 	std::vector<double> membership = FCM::RunClustering(nDims, data, nClusters, fuzziness, precision, centroids);
 	auto t2 = std::chrono::high_resolution_clock::now();
+	PrintMatrix(nDims, "Centroid", centroids);
 	printf("Run time (milisecs): %li\n", std::chrono::duration_cast<std::chrono::nanoseconds>(t2 -t1)/1000000); 
 }
 
@@ -103,8 +105,8 @@ int main(int argc, char** argv)
 {
 	//TestClusteringFixedVals();
 	//TestClustering();
-	TestGenerateInitMembership();
-	TestClusteringFixedVals();
+	//TestGenerateInitMembership();
+	//TestClusteringFixedVals();
 	TestRunTime();
 	
 	char ch;
