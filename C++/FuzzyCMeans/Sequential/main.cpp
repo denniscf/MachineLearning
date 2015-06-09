@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include "MathAux.h"
 
 void GenerateData(int nPoints, int nDims, std::vector<double> & data)
 {
@@ -71,13 +72,11 @@ void TestClusteringFixedVals()
 	printf("Done!");
 }
 
-void TestRunTime()
+double TestRunTime(int nPoints, int nClusters)
 {
 	//Seems to perform with similar precision when compared to fcm in matlab
 	int fuzziness = 2;
-	int nPoints = 1000000;
-	int nDims = 10;
-	int nClusters = 10;
+	int nDims = 3;
 	float precision = 0.01;
 	
 	std::vector<double> distances;
@@ -88,8 +87,7 @@ void TestRunTime()
 	auto t1 = std::chrono::high_resolution_clock::now();
 	std::vector<double> membership = FCM::RunClustering(nDims, data, nClusters, fuzziness, precision, centroids);
 	auto t2 = std::chrono::high_resolution_clock::now();
-	PrintMatrix(nDims, "Centroid", centroids);
-	printf("Run time (milisecs): %li\n", std::chrono::duration_cast<std::chrono::nanoseconds>(t2 -t1)/1000000); 
+	return (std::chrono::duration_cast<std::chrono::nanoseconds>(t2 -t1).count()/1000000);
 }
 
 void TestGenerateInitMembership()
@@ -101,14 +99,42 @@ void TestGenerateInitMembership()
 	PrintMatrix(nPoints, "Cluster", membership);
 }
 
+void RunTimePointsIncrease()
+{
+	std::vector<int> nPoints {10000, 25000, 50000,75000, 100000, 250000, 500000, 1000000};
+	std::vector<int> nCentroids {10};
+
+	for(int i=0; i<nPoints.size();++i)
+	{
+		std::vector<double> time;
+		for(int t=0; t<10;++t)
+		{	
+			time.push_back(TestRunTime(nPoints[i], nCentroids[0]));
+		}
+		double meanTime = mean(time);
+		double stdevTime = stdev(time, meanTime);
+		printf("nPoints: %d nClusters: %d Mean time (milisecs): %.3f Stdev time (milisecs): %.3f\n ",nPoints[i], nCentroids[0], meanTime, stdevTime); 
+	}
+	
+}
+
+void RunTimeClustersIncrease()
+{
+	std::vector<int> nPoints {1000000};
+	std::vector<int> nCentroids {2, 3, 5, 7, 10, 13};
+	for(int i=0; i<nPoints.size();++i)
+		for(int j=0; j<nCentroids.size(); ++j)
+			TestRunTime(nPoints[i], nCentroids[j]);
+}
+
 int main(int argc, char** argv)
 {
 	//TestClusteringFixedVals();
 	//TestClustering();
 	//TestGenerateInitMembership();
 	//TestClusteringFixedVals();
-	TestRunTime();
 	
+	RunTimePointsIncrease();
 	char ch;
 	std::cin >> ch;
 }
