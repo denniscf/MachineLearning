@@ -1,4 +1,4 @@
-#include "FCM.h"
+#include "CUDAFCM.h"
 #include <chrono>
 #include <string>
 #include <vector>
@@ -35,7 +35,7 @@ void PrintResults(int nDim, std::vector<float> & points, std::vector<float> & ce
 	
 	PrintMatrix(nDim, "Point", points);
 	PrintMatrix(nDim, "Centroid", centroids);
-	PrintMatrix(nCentroids, "Membership", membership);
+	PrintMatrix(points.size()/nDim, "Membership", membership);
 }
 
 void TestClustering()
@@ -43,13 +43,13 @@ void TestClustering()
 	int fuzziness = 2;
 	int nPoints = 4;
 	int nDims = 2;
-	int nClusters = 2;
+	int nCentroids = 2;
 
 	std::vector<float> distances;
 	std::vector<float> data;
 	std::vector<float> centroids;
 	GenerateData(nPoints, nDims, data);
-	std::vector<float> membership = FCM::RunClustering(nDims, data, nClusters, fuzziness, 0.001, centroids);
+	std::vector<float> membership = CUDAFCM::RunClustering(nDims, data, fuzziness, 0.001, nCentroids, centroids);
 
 	PrintResults(nDims, data, centroids, membership);
 	printf("Done!\n");
@@ -61,8 +61,8 @@ void TestCUDARandomGenerator()
 	int nClusters = 5;
 	float * deviceData;
 	std::vector<float> hostData;
-	FCM::CudaInitializeMembership(nPoints, nClusters, deviceData, hostData);
-	float sum= 0.0;
+	CUDAFCM::CudaInitializeMembership(nPoints, nClusters, &deviceData, hostData);
+	float sum=0.0;
 	
 	for(int i=0; i<nPoints; i++)
 	{
@@ -72,7 +72,7 @@ void TestCUDARandomGenerator()
 		sum =0.0;
 	}	
 		
-	printf("TestCUDARandomGenerator finished!");
+	printf("TestCUDARandomGenerator finished!\n");
 }
 
 void TestRunTime()
@@ -80,9 +80,9 @@ void TestRunTime()
 	//Seems to perform with similar precision when compared to fcm in matlab
 	int fuzziness = 2;
 	int nPoints = 1000000;
-	int nDims = 5;
-	int nClusters = 10;
-	float precision = 0.01;
+	int nDims = 10;
+	int nCentroids= 10;
+	float precision = 0.001;
 	
 	std::vector<float> distances;
 	std::vector<float> data;
@@ -90,18 +90,20 @@ void TestRunTime()
 	
 	GenerateData(nPoints, nDims, data);
 	auto t1 = std::chrono::high_resolution_clock::now();
-	std::vector<float> membership = FCM::RunClustering(nDims, data, nClusters, fuzziness, precision, centroids);
+	std::vector<float> membership = CUDAFCM::RunClustering(nDims, data, fuzziness, precision, nCentroids, centroids);
 	auto t2 = std::chrono::high_resolution_clock::now();
+	PrintMatrix(nDims, "Centroid", centroids);
 	printf("Run time (milisecs): %li\n", std::chrono::duration_cast<std::chrono::nanoseconds>(t2 -t1)/1000000); 
 }
 
 int main(int argc, char** argv)
 {
-	//TestCUDARandomGenerator();
-	//FCM::TestComputeCentroid();
-	FCM::TestComputeMembership();
-	//TestClustering();
-	//TestRunTime();
+	/*TestCUDARandomGenerator();
+	CUDAFCM::TestComputeCentroid();
+	CUDAFCM::TestComputeMembership();
+	CUDAFCM::TestComputeSquareError();
+	TestClustering();*/
+	TestRunTime();
 	
 	char ch;
 	std::cin >> ch;
