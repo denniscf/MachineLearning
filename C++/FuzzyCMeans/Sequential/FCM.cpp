@@ -14,7 +14,12 @@ namespace FCM
 	#ifndef USE_OMP
 		int omp_get_thread_num()
 		{
-			return 0;
+			return 1;
+		}
+
+		int omp_get_max_threads()
+		{
+			return 1; 
 		}
 	#endif
 
@@ -41,17 +46,20 @@ namespace FCM
 	*/
 	std::vector<double> RunClustering(int nDims, const std::vector<double> & data, int nCentroids, double fuzziness, double errorThreshold, std::vector<double> & centroids)
 	{
+		const int maxIter = 100;
 		std::vector<double> currentMembership;
 		std::vector<double> nextMembership;
 		int nPoints = data.size() / nDims;
 		InitializeMembership(nPoints, nCentroids, nextMembership);
 
+		int iter = 0;
 		do
 		{
 			currentMembership = nextMembership;
 			FCM::ComputeCentroids(nCentroids, fuzziness, nDims, data, currentMembership, centroids);
 			FCM::ComputeMembership(nDims, data, centroids, fuzziness, nextMembership);
-		} while (IsMembershipDiffGreater(currentMembership, nextMembership, errorThreshold));
+			iter++;
+		} while (IsMembershipDiffGreater(currentMembership, nextMembership, errorThreshold) && iter < maxIter);
 		
 		FCM::ComputeCentroids(nCentroids, fuzziness, nDims, data, nextMembership, centroids);
 		return nextMembership;
